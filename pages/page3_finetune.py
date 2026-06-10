@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWizardPage, QVBoxLayout, QFormLayout, QLineEdit, QPushButton, QTextEdit, QLabel, QSpinBox
+from PySide6.QtWidgets import QWizardPage, QVBoxLayout, QFormLayout, QLineEdit, QPushButton, QTextEdit, QLabel, QSpinBox, QProgressBar
 from PySide6.QtCore import Qt, QThread
 
 from core.workers import FineTuneWorker
@@ -31,6 +31,9 @@ class FineTunePage(QWizardPage):
         form.addRow("Epochs:", self.epochs_spin)
         form.addRow("Max length:", self.maxlen_spin)
 
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, self.epochs_spin.value())
+
         self.log_view = QTextEdit()
         self.log_view.setReadOnly(True)
 
@@ -38,6 +41,7 @@ class FineTunePage(QWizardPage):
         self.run_btn.clicked.connect(self.start_job)
 
         layout.addLayout(form)
+        layout.addWidget(self.progress_bar)
         layout.addWidget(QLabel("Logs:"))
         layout.addWidget(self.log_view)
         layout.addWidget(self.run_btn)
@@ -46,6 +50,7 @@ class FineTunePage(QWizardPage):
 
         self.thread = None
         self.worker = None
+        self.current_epoch = 0
 
     def start_job(self):
         jsonl_path = self.jsonl_edit.text().strip()
@@ -65,23 +70,32 @@ class FineTunePage(QWizardPage):
 
         self.run_btn.setEnabled(False)
         self.log_view.clear()
+        self.progress_bar.setRange(0, epochs)
+        self.progress_bar.setValue(0)
+        self.current_epoch = 0
 
         self.thread = QThread()
         self.worker = FineTuneWorker(jsonl_path, out_dir, base_dir, epochs, maxlen)
         self.worker.moveToThread(self.thread)
 
         self.thread.started.connect(self.worker.run)
-        self.worker.progress.connect(self.append_log)
+        self.worker.progress.connect(self.on_progress)
         self.worker.finished.connect(self.on_finished)
 
         self.thread.start()
 
-    def append_log(self, text: str):
+    def on_progress(self, text: str):
         self.log_view.append(text)
+        # crude epoch detection: look for "epoch" keyword
+        if "epoch" in text.lower():
+            self.current_epoch += 1
+            self.progress_bar.setValue(self.current_epoch)
 
     def on_finished(self, ok: bool, msg: str):
         self.run_btn.setEnabled(True)
-        self.append_log(msg)
+        if ok:
+            self.progress_bar.setValue(self.progress_bar.maximum())
+        self.log_view.append(msg)
         if self.thread:
             self.thread.quit()
             self.thread.wait()

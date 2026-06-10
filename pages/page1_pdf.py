@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWizardPage, QVBoxLayout, QFormLayout, QLineEdit, QPushButton, QTextEdit, QFileDialog, QLabel, QHBoxLayout
+from PySide6.QtWidgets import QWizardPage, QVBoxLayout, QFormLayout, QLineEdit, QPushButton, QTextEdit, QFileDialog, QLabel, QHBoxLayout, QProgressBar
 from PySide6.QtCore import Qt, QThread
 
 from core.workers import PdfToTextWorker
@@ -30,6 +30,9 @@ class PdfToTextPage(QWizardPage):
         form.addRow("Input PDF:", pdf_row)
         form.addRow("Output TXT:", txt_row)
 
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)  # indeterminate until we know page count
+
         self.log_view = QTextEdit()
         self.log_view.setReadOnly(True)
 
@@ -37,6 +40,7 @@ class PdfToTextPage(QWizardPage):
         self.run_btn.clicked.connect(self.start_job)
 
         layout.addLayout(form)
+        layout.addWidget(self.progress_bar)
         layout.addWidget(QLabel("Logs:"))
         layout.addWidget(self.log_view)
         layout.addWidget(self.run_btn)
@@ -67,6 +71,7 @@ class PdfToTextPage(QWizardPage):
 
         self.run_btn.setEnabled(False)
         self.log_view.clear()
+        self.progress_bar.setRange(0, 0)
 
         self.thread = QThread()
         self.worker = PdfToTextWorker(pdf_path, txt_path)
@@ -83,6 +88,8 @@ class PdfToTextPage(QWizardPage):
 
     def on_finished(self, ok: bool, msg: str):
         self.run_btn.setEnabled(True)
+        self.progress_bar.setRange(0, 1)
+        self.progress_bar.setValue(1)
         self.append_log(msg)
         if self.thread:
             self.thread.quit()
