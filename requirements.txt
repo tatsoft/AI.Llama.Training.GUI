@@ -1,0 +1,26 @@
+# Core ML
+torch
+transformers
+datasets
+peft
+accelerate
+
+# PDF processing
+PyMuPDF
+
+# JSONL generation
+nltk
+
+# RAG
+faiss-cpu
+sentence-transformers
+
+# Agentic SQL
+llama-cpp-python
+pyodbc
+
+# GUI
+PySide6
+
+# Optional (Linux + NVIDIA CUDA only — comment out on Windows/AMD)
+# bitsandbytes
